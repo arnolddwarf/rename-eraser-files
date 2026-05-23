@@ -39,9 +39,23 @@ def seleccionar():
             'files': list(files)
         })
     except Exception as e:
+        # Fallback para entornos sin GUI (como Docker)
+        data_dir = "/data"
+        if os.path.exists(data_dir):
+            files = []
+            for root_dir, _, filenames in os.walk(data_dir):
+                for f in filenames:
+                    if f.lower().endswith((".mp4", ".mkv", ".avi", ".ts", ".mov")):
+                        files.append(os.path.join(root_dir, f))
+            # Ordenar archivos para consistencia
+            files.sort()
+            return jsonify({
+                'status': 'success',
+                'files': files
+            })
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f"No se pudo abrir el selector de archivos nativo y la carpeta '/data' no existe. Detalle: {str(e)}"
         }), 500
 
 @app.route('/api/buscar', methods=['POST'])
@@ -214,12 +228,19 @@ def renombrar():
     })
 
 # --- CONFIGURACIÓN PARA METADATOS (MKVTOOLNIX) ---
-MKVMERGE_PATH = r"C:\Program Files\MKVToolNix\mkvmerge.exe"
-MKVPROPEDIT_PATH = r"C:\Program Files\MKVToolNix\mkvpropedit.exe"
+import platform
+is_windows = platform.system() == 'Windows'
 
-# Ocultar consola en Windows para subprocesos
-si_meta = subprocess.STARTUPINFO()
-si_meta.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+if is_windows:
+    MKVMERGE_PATH = r"C:\Program Files\MKVToolNix\mkvmerge.exe"
+    MKVPROPEDIT_PATH = r"C:\Program Files\MKVToolNix\mkvpropedit.exe"
+    # Ocultar consola en Windows para subprocesos
+    si_meta = subprocess.STARTUPINFO()
+    si_meta.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+else:
+    MKVMERGE_PATH = "mkvmerge"
+    MKVPROPEDIT_PATH = "mkvpropedit"
+    si_meta = None
 
 DICC_IDIOMAS = {
     # Inglés
@@ -327,17 +348,31 @@ def limpiador_seleccionar():
             'files': archivos
         })
     except Exception as e:
+        # Fallback para entornos sin GUI (como Docker)
+        data_dir = "/data"
+        if os.path.exists(data_dir):
+            archivos = []
+            for root_dir, _, filenames in os.walk(data_dir):
+                for f in filenames:
+                    if f.lower().endswith((".mkv", ".mp4")):
+                        archivos.append(os.path.join(root_dir, f))
+            archivos.sort()
+            return jsonify({
+                'status': 'success',
+                'files': archivos
+            })
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f"No se pudo abrir el selector de archivos nativo y la carpeta '/data' no existe. Detalle: {str(e)}"
         }), 500
 
 @app.route('/api/limpiador/analizar', methods=['POST'])
 def limpiador_analizar():
-    if not os.path.exists(MKVMERGE_PATH):
+    import shutil
+    if not shutil.which(MKVMERGE_PATH):
         return jsonify({
             'status': 'error',
-            'message': f"MKVToolNix no está instalado en la ruta predeterminada: {MKVMERGE_PATH}. Instálalo para usar esta herramienta."
+            'message': f"MKVToolNix (mkvmerge) no está instalado o no se encuentra en el PATH. Instálalo para usar esta herramienta."
         }), 400
 
     data = request.get_json() or {}
@@ -393,10 +428,11 @@ def limpiador_analizar():
 
 @app.route('/api/limpiador/procesar', methods=['POST'])
 def limpiador_procesar():
-    if not os.path.exists(MKVPROPEDIT_PATH) or not os.path.exists(MKVMERGE_PATH):
+    import shutil
+    if not shutil.which(MKVPROPEDIT_PATH) or not shutil.which(MKVMERGE_PATH):
         return jsonify({
             'status': 'error',
-            'message': "MKVToolNix no está instalado completamente en la ruta predeterminada. Instálalo para usar esta herramienta."
+            'message': "MKVToolNix (mkvmerge o mkvpropedit) no está instalado o no se encuentra en el PATH. Instálalo para usar esta herramienta."
         }), 400
 
     data = request.get_json() or {}
@@ -484,7 +520,14 @@ def limpiador_procesar():
     })
 
 if __name__ == '__main__':
-    # Abrir el navegador por defecto automáticamente
-    webbrowser.open("http://127.0.0.1:5000")
-    # Ejecutar en el host local. Desactivamos multi-threading para evitar colisiones de hilos con Tkinter.
-    app.run(host='127.0.0.1', port=5000, debug=False, threaded=False)
+    # Detectar si estamos corriendo dentro de un contenedor Docker
+    is_docker = os.path.exists('/.dockerenv')
+    
+    host = '0.0.0.0' if is_docker else '127.0.0.1'
+    
+    # Solo abrir el navegador automáticamente si no estamos en Docker
+    if not is_docker:
+        webbrowser.open(f"http://127.0.0.1:5000")
+        
+    # Ejecutar la aplicación Flask. Desactivamos multi-threading para evitar colisiones de hilos con Tkinter si se ejecuta de forma nativa.
+    app.run(host=host, port=5000, debug=False, threaded=False)
