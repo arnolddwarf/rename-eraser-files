@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import re
 import webbrowser
@@ -6,7 +7,13 @@ import subprocess
 import json
 from flask import Flask, render_template, request, jsonify
 
-app = Flask(__name__)
+if getattr(sys, 'frozen', False):
+    template_folder = os.path.join(sys._MEIPASS, 'templates')
+    static_folder = os.path.join(sys._MEIPASS, 'static')
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+else:
+    app = Flask(__name__)
+
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # === CONFIGURACIÓN ===
