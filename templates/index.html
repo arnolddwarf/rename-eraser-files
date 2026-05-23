@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DWARF Tools</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Hojas de estilo -->
+    <link rel="stylesheet" href="/static/style.css?v=3.4">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-wand-magic-sparkles magic-icon"></i>
+                <h1>DWARF <span class="accent-text">Tools</span></h1>
+            </div>
+            <nav class="app-nav">
+                <button class="nav-tab active" data-tab="renamer">
+                    <i class="fa-solid fa-tags"></i> Renombrador
+                </button>
+                <button class="nav-tab" data-tab="cleaner">
+                    <i class="fa-solid fa-broom"></i> Limpiador MKV / MP4
+                </button>
+            </nav>
+        </header>
+
+        <!-- Pestaña 1: Renombrador de Videos -->
+        <div class="main-layout tab-content active" id="tab-content-renamer">
+            
+            <!-- Panel Izquierdo: Configuración e Historial/Búsqueda -->
+            <aside class="sidebar-panel">
+                <div class="card panel-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <h2>Buscar en TMDB</h2>
+                    </div>
+                    
+                    <div class="search-config">
+                        <div class="toggle-group">
+                            <label class="toggle-option">
+                                <input type="radio" name="search_type" value="tv" checked>
+                                <span class="toggle-btn"><i class="fa-solid fa-tv"></i> Serie</span>
+                            </label>
+                            <label class="toggle-option">
+                                <input type="radio" name="search_type" value="movie">
+                                <span class="toggle-btn"><i class="fa-solid fa-film"></i> Película</span>
+                            </label>
+                        </div>
+                        
+                        <div class="search-bar">
+                            <input type="text" id="search-input" placeholder="Ej. Breaking Bad, Los Simpson..." autocomplete="off">
+                            <div class="lang-select-wrapper">
+                                <select id="lang-select" class="select-premium">
+                                    <option value="es-ES">Español</option>
+                                    <option value="en-US" selected>Inglés</option>
+                                    <option value="ja-JP">Japonés</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor de Resultados de Búsqueda -->
+                    <div class="results-container" id="search-results">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-search"></i>
+                            <p>Escribe el nombre de una serie o película para buscarla en TMDB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selección Activa -->
+                <div class="card selection-card" id="selection-card" style="display: none;">
+                    <div class="selected-poster" id="selected-poster"></div>
+                    <div class="selected-info">
+                        <span class="badge" id="selected-badge">Serie</span>
+                        <h3 id="selected-title">Nombre Seleccionado</h3>
+                        <p class="meta-info" id="selected-meta">Año • ID: --</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Panel Derecho: Archivos y Renombrado -->
+            <main class="content-panel">
+                <div class="card main-card">
+                    <div class="card-header justify-between">
+                        <div class="header-left">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <h2>Archivos Seleccionados</h2>
+                        </div>
+                        <div class="header-actions">
+                            <button id="btn-select" class="btn btn-secondary"><i class="fa-solid fa-file-video"></i> Seleccionar Archivos</button>
+                            <button id="btn-analyze" class="btn btn-action" disabled><i class="fa-solid fa-wand-magic"></i> Analizar</button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla / Lista de Archivos -->
+                    <div class="table-container">
+                        <table class="files-table" id="files-table" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th width="45px" class="text-center">
+                                        <label class="custom-checkbox-container">
+                                            <input type="checkbox" id="chk-select-all" checked>
+                                            <span class="custom-checkbox"></span>
+                                        </label>
+                                    </th>
+                                    <th>Archivo Original</th>
+                                    <th>Nuevo Nombre Propuesto</th>
+                                    <th width="80px" class="text-center">Estado</th>
+                                    <th width="60px" class="text-center">Quitar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="files-body">
+                            </tbody>
+                        </table>
+                        
+                        <div class="no-files-container" id="no-files-container">
+                            <i class="fa-solid fa-photo-film"></i>
+                            <p>No has seleccionado ningún archivo de video.</p>
+                            <span>Haz clic en "Seleccionar Archivos" arriba para comenzar.</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer de la Tarjeta Principal con Acción Ejecutar -->
+                    <div class="card-footer">
+                        <div class="files-count" id="files-count">0 archivos cargados</div>
+                        <div class="footer-buttons">
+                            <button id="btn-reset" class="btn btn-secondary btn-reset" style="display: none;">
+                                <i class="fa-solid fa-arrow-rotate-left"></i> Reiniciar
+                            </button>
+                            <button id="btn-rename" class="btn btn-success" disabled>
+                                <i class="fa-solid fa-rocket"></i> Renombrar Ahora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+        </div>
+
+        <!-- Pestaña 2: Limpiador de Metadatos MKV -->
+        <div class="main-layout tab-content" id="tab-content-cleaner" style="display: none;">
+            
+            <!-- Panel Izquierdo: Selección de Archivos -->
+            <aside class="sidebar-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-broom"></i>
+                        <h2>Limpiador MKV / MP4</h2>
+                    </div>
+                    
+                    <div class="search-config" style="border-bottom: none;">
+                        <div class="toggle-group">
+                            <button id="btn-cleaner-select-files" class="btn-cleaner-toggle">
+                                <i class="fa-solid fa-file-video"></i> Archivos
+                            </button>
+                            <button id="btn-cleaner-select-folder" class="btn-cleaner-toggle">
+                                <i class="fa-solid fa-folder-open"></i> Carpeta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selección Activa de Archivos Cargados -->
+                <div class="card panel-card" id="cleaner-files-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-list-ul"></i>
+                        <h2>Archivos Cargados</h2>
+                    </div>
+                    <div class="results-container" id="cleaner-files-list">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-photo-film"></i>
+                            <p>Selecciona archivos de video o una carpeta arriba para comenzar la limpieza de metadatos</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Panel Derecho: Consola de Salida y Acciones -->
+            <main class="content-panel">
+                <div class="card main-card">
+                    <div class="card-header justify-between">
+                        <div class="header-left">
+                            <i class="fa-solid fa-terminal"></i>
+                            <h2>Consola de Ejecución</h2>
+                        </div>
+                        <div class="header-actions">
+                            <button id="btn-cleaner-analyze" class="btn btn-action" disabled>
+                                <i class="fa-solid fa-magnifying-glass"></i> Analizar Pistas
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor de la Consola -->
+                    <div class="table-container" style="background-color: #050811; padding: 18px; min-height: 280px; display: flex; flex-direction: column;">
+                        <div class="console-container" id="console-logs">
+                            <div class="log-line log-system">[SISTEMA] Listo. Carga archivos MKV o MP4 para iniciar el análisis profesional.</div>
+                        </div>
+                    </div>
+
+                    <!-- Footer con Botón de Procesado -->
+                    <div class="card-footer">
+                        <div class="files-count" id="cleaner-files-count">0 archivos cargados</div>
+                        <div class="footer-buttons">
+                            <button id="btn-cleaner-reset" class="btn btn-secondary" style="display: none;">
+                                <i class="fa-solid fa-arrow-rotate-left"></i> Reiniciar
+                            </button>
+                            <button id="btn-cleaner-process" class="btn btn-success" disabled>
+                                <i class="fa-solid fa-rocket"></i> Iniciar Proceso
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+        </div>
+
+    </div>
+
+    <!-- Modal / Pantalla de Carga -->
+    <div class="loader-overlay" id="loader-overlay">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p id="loader-text">Procesando...</p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Personalizado -->
+    <div class="custom-modal-overlay" id="confirm-modal">
+        <div class="custom-modal-card">
+            <div class="custom-modal-icon">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="custom-modal-title" id="confirm-modal-title">¿Estás seguro?</h3>
+            <p class="custom-modal-message" id="confirm-modal-message">¿Deseas continuar con esta acción?</p>
+            <div class="custom-modal-footer">
+                <button class="btn btn-secondary" id="btn-confirm-cancel">Cancelar</button>
+                <button class="btn btn-success" id="btn-confirm-accept">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/script.js?v=3.5"></script>
+</body>
+</html>
