@@ -83,7 +83,7 @@ def buscar():
             'api_key': API_KEY,
             'query': query,
             'language': idioma
-        }).json()
+        }, headers={'Accept-Encoding': 'identity'}).json()
         
         results = r.get('results', [])
         return jsonify({
@@ -116,7 +116,7 @@ def analizar():
             # Obtener datos de la película
             url = f"{BASE_URL}/movie/{tmdb_id}"
             try:
-                r = requests.get(url, params={'api_key': API_KEY, 'language': idioma}).json()
+                r = requests.get(url, params={'api_key': API_KEY, 'language': idioma}, headers={'Accept-Encoding': 'identity'}).json()
                 if 'title' in r:
                     release_date = r.get('release_date', '')
                     year = f" ({release_date[:4]})" if release_date else ""
@@ -163,12 +163,12 @@ def analizar():
                     # Obtener nombre de la serie con caché usando idioma
                     cache_key = f"{tmdb_id}_{idioma}"
                     if cache_key not in cache_serie:
-                        r_s = requests.get(f"{BASE_URL}/tv/{tmdb_id}", params={'api_key': API_KEY, 'language': idioma}).json()
+                        r_s = requests.get(f"{BASE_URL}/tv/{tmdb_id}", params={'api_key': API_KEY, 'language': idioma}, headers={'Accept-Encoding': 'identity'}).json()
                         cache_serie[cache_key] = r_s.get('name', 'Serie')
                     
                     # Detalles del episodio
                     r_e = requests.get(f"{BASE_URL}/tv/{tmdb_id}/season/{temp}/episode/{ep}", 
-                                      params={'api_key': API_KEY, 'language': idioma}).json()
+                                      params={'api_key': API_KEY, 'language': idioma}, headers={'Accept-Encoding': 'identity'}).json()
                     
                     # Obtener nombre de episodio de TMDB si existe, o usar un nombre genérico
                     nombre_episodio = r_e.get('name') or f"Episodio {ep}"
@@ -316,6 +316,42 @@ DICC_IDIOMAS = {
     "und": "Desconocido"
 }
 
+MAP_IDIOMAS_CODIGOS = {
+    "Español Latino": "es-419",
+    "Español": "es",
+    "Inglés": "en",
+    "Japonés": "ja",
+    "Coreano": "ko",
+    "Chino": "zh",
+    "Francés": "fr",
+    "Alemán": "de",
+    "Portugués": "pt",
+    "Italiano": "it",
+    "Ruso": "ru",
+    "Árabe": "ar",
+    "Hindi": "hi",
+    "Turco": "tr",
+    "Polaco": "pl",
+    "Holandés": "nl",
+    "Sueco": "sv",
+    "Noruego": "no",
+    "Danés": "da",
+    "Finlandés": "fi",
+    "Tailandés": "th",
+    "Vietnamita": "vi",
+    "Indonesio": "id",
+    "Filipino": "tl",
+    "Ucraniano": "uk",
+    "Griego": "el",
+    "Hebreo": "he",
+    "Checo": "cs",
+    "Húngaro": "hu",
+    "Rumano": "ro",
+    "Catalán": "ca",
+    "Gallego": "gl",
+    "Euskera": "eu"
+}
+
 def identificar_idioma_inteligente(track):
     props = track.get('properties', {})
     t_lang_ietf = str(props.get('language_ietf', '')).lower().strip()
@@ -326,6 +362,30 @@ def identificar_idioma_inteligente(track):
     if t_lang_std in ["es", "spa"] or t_lang_ietf in ["es", "spa"]:
         if "latino" in t_name or "lat" in t_name: return "Español Latino"
         return "Español"
+        
+    # Si el idioma es desconocido ("und"), intentamos deducirlo del nombre de la pista
+    if t_lang_std == "und" or not t_lang_std:
+        if "latino" in t_name or "lat" in t_name:
+            return "Español Latino"
+        if "castellano" in t_name or "espa" in t_name or "esp" in t_name or "spa" in t_name:
+            return "Español"
+        if "ingl" in t_name or "english" in t_name or "eng" in t_name:
+            return "Inglés"
+        if "japo" in t_name or "japanese" in t_name or "jpn" in t_name or "jap" in t_name:
+            return "Japonés"
+        if "portu" in t_name or "portuguese" in t_name or "por" in t_name:
+            return "Portugués"
+        if "core" in t_name or "korean" in t_name or "kor" in t_name:
+            return "Coreano"
+        if "fran" in t_name or "french" in t_name or "fra" in t_name or "fre" in t_name:
+            return "Francés"
+        if "alem" in t_name or "german" in t_name or "ger" in t_name or "deu" in t_name:
+            return "Alemán"
+        if "ital" in t_name or "italian" in t_name or "ita" in t_name:
+            return "Italiano"
+        if "chin" in t_name or "chinese" in t_name or "zho" in t_name or "chi" in t_name:
+            return "Chino"
+
     return DICC_IDIOMAS.get(t_lang_std, f"Idioma: {t_lang_std.upper()}")
 
 @app.route('/api/limpiador/seleccionar', methods=['GET'])
@@ -494,8 +554,14 @@ def limpiador_procesar():
                 
                 if is_mp4:
                     comando.extend(["--track-name", f"{track_id}:{nombre_final}"])
+                    lang_code = MAP_IDIOMAS_CODIGOS.get(nombre_idioma)
+                    if lang_code:
+                        comando.extend(["--language", f"{track_id}:{lang_code}"])
                 else:
                     comando.extend(["--edit", f"track:{prefix}{idx}", "--set", f"name={nombre_final}"])
+                    lang_code = MAP_IDIOMAS_CODIGOS.get(nombre_idioma)
+                    if lang_code:
+                        comando.extend(["--set", f"language={lang_code}"])
                 
                 if t_type == "audio":
                     a_count += 1
