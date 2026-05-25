@@ -120,7 +120,7 @@ def analizar():
                 if 'title' in r:
                     release_date = r.get('release_date', '')
                     year = f" ({release_date[:4]})" if release_date else ""
-                    nuevo_nombre = f"{r['title']}{year}{ext}"
+                    nuevo_nombre = f"[Dwarf] {r['title']}{year}{ext}"
             except Exception as e:
                 print(f"Error consultando película: {e}")
         else:
@@ -172,7 +172,7 @@ def analizar():
                     
                     # Obtener nombre de episodio de TMDB si existe, o usar un nombre genérico
                     nombre_episodio = r_e.get('name') or f"Episodio {ep}"
-                    nuevo_nombre = f"{cache_serie[cache_key]} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - {nombre_episodio}{ext}"
+                    nuevo_nombre = f"[Dwarf] {cache_serie[cache_key]} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - {nombre_episodio}{ext}"
                 except Exception as e:
                     print(f"Error consultando episodio S{temp}E{ep}: {e}")
                     
