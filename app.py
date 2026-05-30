@@ -67,8 +67,14 @@ def seleccionar():
 
 from bs4 import BeautifulSoup
 
-def buscar_filmaffinity(query):
-    url = "https://www.filmaffinity.com/pe/search.php"
+def buscar_filmaffinity(query, idioma="es-ES"):
+    lang_code = "pe" # Por defecto buscar en Perú (español latino)
+    if idioma.startswith("en"):
+        lang_code = "en"
+    elif idioma.startswith("ja"):
+        lang_code = "en"
+        
+    url = f"https://www.filmaffinity.com/{lang_code}/search.php"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
@@ -148,8 +154,14 @@ def buscar_filmaffinity(query):
         })
     return results
 
-def obtener_detalles_filmaffinity(fid):
-    url = f"https://www.filmaffinity.com/pe/film{fid}.html"
+def obtener_detalles_filmaffinity(fid, idioma="es-ES"):
+    lang_code = "pe" # Por defecto buscar en Perú (español latino)
+    if idioma.startswith("en"):
+        lang_code = "en"
+    elif idioma.startswith("ja"):
+        lang_code = "en"
+        
+    url = f"https://www.filmaffinity.com/{lang_code}/film{fid}.html"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
@@ -193,7 +205,7 @@ def buscar():
         
     if proveedor == 'filmaffinity':
         try:
-            results = buscar_filmaffinity(query)
+            results = buscar_filmaffinity(query, idioma)
             return jsonify({
                 'status': 'success',
                 'results': results
@@ -236,7 +248,7 @@ def analizar():
     
     if proveedor == 'filmaffinity':
         try:
-            details = obtener_detalles_filmaffinity(tmdb_id)
+            details = obtener_detalles_filmaffinity(tmdb_id, idioma)
             title = details.get('title')
             year = details.get('year')
             is_tv = details.get('is_tv', False) or tipo == 'tv'

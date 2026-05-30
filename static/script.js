@@ -479,7 +479,7 @@ function renderFilesTable() {
         if (isRenamed) {
             rowClass = 'row-renamed';
             nuevoNombreHTML = `<span class="proposed-name success">${planItem.nombre_nuevo}</span>`;
-            estadoHTML = '<span class="status-badge renamed" title="Renombrado exitosamente"><i class="fa-solid fa-circle-check"></i></span>';
+            estadoHTML = '<span class="status-badge renamed" title="Renombrado exitosamente"><i class="fa-solid fa-check-double"></i></span>';
         } else if (hasRenameError) {
             rowClass = 'row-error';
             nuevoNombreHTML = `<span class="proposed-name error">${planItem.nombre_nuevo || 'Error'}</span>`;
@@ -562,11 +562,15 @@ function removeFile(filepath) {
 async function analyzeFiles() {
     if (!state.selectedId || state.files.length === 0) return;
 
-    // Filtrar solo los archivos que están marcados (seleccionados)
-    const checkedFiles = state.files.filter(f => !state.unchecked.has(f));
+    // Filtrar solo los archivos que están marcados (seleccionados) Y que no han sido renombrados aún
+    const checkedFiles = state.files.filter(f => {
+        if (state.unchecked.has(f)) return false;
+        const planItem = state.plan.find(p => p.ruta_original === f);
+        return !(planItem && planItem.renamed);
+    });
 
     if (checkedFiles.length === 0) {
-        showToast('No hay archivos seleccionados para analizar. Por favor, marca al menos uno.', 'warning');
+        showToast('No hay nuevos archivos seleccionados para analizar.', 'warning');
         return;
     }
 
