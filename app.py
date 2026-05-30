@@ -65,16 +65,142 @@ def seleccionar():
             'message': f"No se pudo abrir el selector de archivos nativo y la carpeta '/data' no existe. Detalle: {str(e)}"
         }), 500
 
+from bs4 import BeautifulSoup
+
+def buscar_filmaffinity(query):
+    url = "https://www.filmaffinity.com/pe/search.php"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    params = {"stext": query}
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+    except Exception as e:
+        print(f"Error querying FilmAffinity: {e}")
+        return []
+    
+    results = []
+    
+    # Direct redirect check
+    if "film" in response.url and response.url.endswith(".html"):
+        m = re.search(r'film(\d+)\.html', response.url)
+        if m:
+            fid = m.group(1)
+            title_h1 = soup.find("h1", id="main-title")
+            title = title_h1.text.strip() if title_h1 else "Película"
+            year_el = soup.find("dd", itemprop="datePublished")
+            year = year_el.text.strip() if year_el else ""
+            poster_url = ""
+            poster_img = soup.find("img", itemprop="image")
+            if poster_img:
+                poster_url = poster_img.get("src", "")
+            
+            results.append({
+                "id": int(fid),
+                "title": title,
+                "release_date": year,
+                "poster_path": poster_url
+            })
+            return results
+
+    cards = soup.find_all("div", class_="movie-card")
+    for card in cards:
+        id_val = card.get("data-movie-id")
+        title_div = card.find("div", class_="mc-title")
+        if not title_div:
+            continue
+        title_a = title_div.find("a")
+        title = title_a.text.strip() if title_a else title_div.text.strip()
+        
+        if not id_val and title_a:
+            href = title_a.get("href")
+            m = re.search(r'film(\d+)\.html', href)
+            if m:
+                id_val = m.group(1)
+                
+        if not id_val:
+            continue
+            
+        year_span = card.find("span", class_="mc-year")
+        year = year_span.text.strip() if year_span else ""
+        
+        poster_url = ""
+        img = card.find("img")
+        if img:
+            srcset = img.get("data-srcset") or img.get("srcset")
+            if srcset:
+                urls = [u.strip().split()[0] for u in srcset.split(",") if u.strip()]
+                if urls:
+                    poster_url = urls[-1]
+            if not poster_url:
+                src = img.get("src")
+                if src and not src.endswith("empty.gif"):
+                    poster_url = src
+                    if not poster_url.startswith("http"):
+                        poster_url = "https://www.filmaffinity.com" + poster_url
+                        
+        results.append({
+            "id": int(id_val),
+            "title": title,
+            "release_date": year,
+            "poster_path": poster_url
+        })
+    return results
+
+def obtener_detalles_filmaffinity(fid):
+    url = f"https://www.filmaffinity.com/pe/film{fid}.html"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers, timeout=10)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    title_h1 = soup.find("h1", id="main-title")
+    title = title_h1.text.strip() if title_h1 else ""
+    
+    year_el = soup.find("dd", itemprop="datePublished")
+    year = year_el.text.strip() if year_el else ""
+    
+    is_tv = False
+    info_dls = soup.find_all("dl", class_="movie-info")
+    for dl in info_dls:
+        dts = dl.find_all("dt")
+        dds = dl.find_all("dd")
+        for dt, dd in zip(dts, dds):
+            dt_text = dt.text.lower()
+            dd_text = dd.text.lower()
+            if "género" in dt_text or "sinopsis" in dt_text or "guion" in dt_text:
+                if "serie de tv" in dd_text or "miniserie de tv" in dd_text:
+                    is_tv = True
+                    
+    return {
+        "title": title,
+        "year": year,
+        "is_tv": is_tv
+    }
+
 @app.route('/api/buscar', methods=['POST'])
 def buscar():
     data = request.get_json() or {}
     query = data.get('query')
     tipo = data.get('tipo', 'tv') # 'tv' o 'movie'
     idioma = data.get('idioma', 'es-ES')
+    proveedor = data.get('proveedor', 'tmdb')
     
     if not query:
         return jsonify({'status': 'error', 'message': 'Falta el término de búsqueda'}), 400
         
+    if proveedor == 'filmaffinity':
+        try:
+            results = buscar_filmaffinity(query)
+            return jsonify({
+                'status': 'success',
+                'results': results
+            })
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
     endpoint = "/search/tv" if tipo == "tv" else "/search/movie"
     url = f"{BASE_URL}{endpoint}"
     
@@ -100,6 +226,7 @@ def analizar():
     tipo = data.get('tipo', 'tv')
     archivos = data.get('archivos', [])
     idioma = data.get('idioma', 'es-ES')
+    proveedor = data.get('proveedor', 'tmdb')
     
     if not tmdb_id or not archivos:
         return jsonify({'status': 'error', 'message': 'Faltan parámetros'}), 400
@@ -107,6 +234,57 @@ def analizar():
     plan = []
     global cache_serie
     
+    if proveedor == 'filmaffinity':
+        try:
+            details = obtener_detalles_filmaffinity(tmdb_id)
+            title = details.get('title')
+            year = details.get('year')
+            is_tv = details.get('is_tv', False) or tipo == 'tv'
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': f"Error al consultar FilmAffinity: {str(e)}"}), 500
+            
+        for ruta_completa in archivos:
+            nombre_original = os.path.basename(ruta_completa)
+            ext = os.path.splitext(nombre_original)[1]
+            nuevo_nombre = ""
+            
+            if not is_tv:
+                year_suffix = f" ({year})" if year else ""
+                nuevo_nombre = f"[Dwarf] {title}{year_suffix}{ext}"
+            else:
+                match = None
+                match = re.search(r'[sStT](\d+)[eE](\d+)', nombre_original)
+                if not match:
+                    match = re.search(r'(\d+)[xX](\d+)', nombre_original)
+                    
+                temp, ep = None, None
+                if match:
+                    temp, ep = int(match.group(1)), int(match.group(2))
+                else:
+                    nombre_sin_ext, _ = os.path.splitext(nombre_original)
+                    nombre_limpio = re.sub(r'\[[a-fA-F0-9]{8}\]', '', nombre_sin_ext)
+                    nombre_limpio = re.sub(r'[\(\[]\d{4}[\)\]]', '', nombre_limpio)
+                    nombre_limpio = re.sub(r'(?i)v\d+\b', '', nombre_limpio)
+                    nombre_limpio = re.sub(r'(?i)\b(?:\d{3,4}p|x26[45]|h26[45]|10bit|bd|bluray|webrip|dual|sub_esp|castellano|latino)\b', '', nombre_limpio)
+                    matches_nums = re.findall(r'(?<!\d)\d{1,3}(?!\d)', nombre_limpio)
+                    if matches_nums:
+                        temp = 1
+                        ep = int(matches_nums[-1])
+                        
+                if temp is not None and ep is not None:
+                    nuevo_nombre = f"[Dwarf] {title} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - Episodio {ep}{ext}"
+                    
+            plan.append({
+                'ruta_original': ruta_completa,
+                'nombre_original': nombre_original,
+                'nombre_nuevo': nuevo_nombre if nuevo_nombre else None
+            })
+            
+        return jsonify({
+            'status': 'success',
+            'plan': plan
+        })
+
     for ruta_completa in archivos:
         nombre_original = os.path.basename(ruta_completa)
         ext = os.path.splitext(nombre_original)[1]

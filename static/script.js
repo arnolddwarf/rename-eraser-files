@@ -4,7 +4,8 @@
 const state = {
     mediaType: 'tv',          // 'tv' o 'movie'
     language: 'en-US',        // Idioma del renombrado ('es-ES', 'en-US', 'ja-JP')
-    selectedId: null,         // ID de TMDB seleccionado
+    provider: 'tmdb',         // Proveedor de metadatos ('tmdb' o 'filmaffinity')
+    selectedId: null,         // ID de TMDB/FilmAffinity seleccionado
     selectedTitle: null,      // Título seleccionado
     selectedYear: null,       // Año seleccionado
     selectedPoster: null,     // Poster URL seleccionado
@@ -22,6 +23,7 @@ const dom = {
     loaderText: document.getElementById('loader-text'),
 
     // Pestaña Renombrador
+    providerSelect: document.getElementById('provider-select'),
     searchTypeRadio: document.getElementsByName('search_type'),
     langSelect: document.getElementById('lang-select'),
     searchInput: document.getElementById('search-input'),
@@ -161,6 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Cambio de proveedor de metadatos (Renombrador)
+    dom.providerSelect.addEventListener('change', (e) => {
+        state.provider = e.target.value;
+        // Si hay una búsqueda activa, volver a buscar
+        if (dom.searchInput.value.trim()) {
+            performSearch();
+        }
+    });
+
     // Eventos del Limpiador MKV
     if (dom.btnCleanerSelectFiles) {
         dom.btnCleanerSelectFiles.addEventListener('click', () => selectCleanerFiles('files'));
@@ -216,7 +227,9 @@ function resetAll() {
     state.plan = [];
     state.unchecked.clear();
     state.language = 'en-US';
+    state.provider = 'tmdb';
     
+    dom.providerSelect.value = 'tmdb';
     dom.langSelect.value = 'en-US';
     dom.searchInput.value = '';
     dom.selectionCard.style.display = 'none';
@@ -269,12 +282,12 @@ function getBasename(path) {
 // ACCIONES API (BACKEND FETCH)
 // ==========================================================================
 
-// 1. Buscar en TMDB
+// 1. Buscar en Catálogo (TMDB o FilmAffinity)
 async function performSearch() {
     const query = dom.searchInput.value.trim();
     if (!query) return;
 
-    setStatus(`Buscando "${query}" en TMDB...`);
+    setStatus(`Buscando "${query}" en ${state.provider === 'filmaffinity' ? 'FilmAffinity' : 'TMDB'}...`);
     dom.searchResults.innerHTML = `
         <div class="empty-state">
             <div class="spinner"></div>
@@ -286,7 +299,7 @@ async function performSearch() {
         const response = await fetch('/api/buscar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, tipo: state.mediaType, idioma: state.language })
+            body: JSON.stringify({ query, tipo: state.mediaType, idioma: state.language, proveedor: state.provider })
         });
         const data = await response.json();
 
@@ -328,7 +341,7 @@ function renderSearchResults(results) {
         }
 
         const posterUrl = item.poster_path 
-            ? `https://image.tmdb.org/t/p/w92${item.poster_path}` 
+            ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w92${item.poster_path}`) 
             : '';
 
         div.innerHTML = `
@@ -549,8 +562,16 @@ function removeFile(filepath) {
 async function analyzeFiles() {
     if (!state.selectedId || state.files.length === 0) return;
 
-    showLoader('Analizando archivos con TMDB...');
-    setStatus('Consultando información en la API de TMDB...');
+    // Filtrar solo los archivos que están marcados (seleccionados)
+    const checkedFiles = state.files.filter(f => !state.unchecked.has(f));
+
+    if (checkedFiles.length === 0) {
+        showToast('No hay archivos seleccionados para analizar. Por favor, marca al menos uno.', 'warning');
+        return;
+    }
+
+    showLoader(`Analizando archivos con ${state.provider === 'filmaffinity' ? 'FilmAffinity' : 'TMDB'}...`);
+    setStatus(`Consultando información en la API de ${state.provider === 'filmaffinity' ? 'FilmAffinity' : 'TMDB'}...`);
 
     try {
         const response = await fetch('/api/analizar', {
@@ -559,14 +580,21 @@ async function analyzeFiles() {
             body: JSON.stringify({
                 tmdb_id: state.selectedId,
                 tipo: state.mediaType,
-                archivos: state.files,
-                idioma: state.language
+                archivos: checkedFiles,
+                idioma: state.language,
+                proveedor: state.provider
             })
         });
         const data = await response.json();
 
         if (data.status === 'success') {
-            state.plan = data.plan;
+            // Combinar las nuevas propuestas con el plan existente
+            const planMap = new Map(state.plan.map(p => [p.ruta_original, p]));
+            data.plan.forEach(newItem => {
+                planMap.set(newItem.ruta_original, newItem);
+            });
+            state.plan = Array.from(planMap.values());
+
             renderFilesTable();
             setStatus('Análisis completado. Revisa las propuestas de nombres antes de ejecutar.');
             showToast('Análisis completado con éxito.', 'success');

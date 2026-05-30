@@ -41,10 +41,18 @@
                 <div class="card panel-card">
                     <div class="card-header">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <h2>Buscar en TMDB</h2>
+                        <h2>Buscar en Catálogo</h2>
                     </div>
                     
                     <div class="search-config">
+                        <div class="provider-select-group" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                            <label style="font-size: 13px; color: var(--text-muted); min-width: 75px;"><i class="fa-solid fa-database"></i> Origen:</label>
+                            <select id="provider-select" class="select-premium" style="flex-grow: 1;">
+                                <option value="tmdb" selected>TMDB (TheMovieDB)</option>
+                                <option value="filmaffinity">FilmAffinity</option>
+                            </select>
+                        </div>
+
                         <div class="toggle-group">
                             <label class="toggle-option">
                                 <input type="radio" name="search_type" value="tv" checked>
@@ -72,7 +80,7 @@
                     <div class="results-container" id="search-results">
                         <div class="empty-state">
                             <i class="fa-solid fa-search"></i>
-                            <p>Escribe el nombre de una serie o película para buscarla en TMDB</p>
+                            <p>Escribe el nombre de una serie o película para buscarla</p>
                         </div>
                     </div>
                 </div>
