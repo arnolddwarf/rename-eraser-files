@@ -262,7 +262,7 @@ def analizar():
             
             if not is_tv:
                 year_suffix = f" ({year})" if year else ""
-                nuevo_nombre = f"[Dwarf] {title}{year_suffix}{ext}"
+                nuevo_nombre = f"[PrimerLatino] {title}{year_suffix}{ext}"
             else:
                 match = None
                 match = re.search(r'[sStT](\d+)[eE](\d+)', nombre_original)
@@ -284,7 +284,7 @@ def analizar():
                         ep = int(matches_nums[-1])
                         
                 if temp is not None and ep is not None:
-                    nuevo_nombre = f"[Dwarf] {title} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - Episodio {ep}{ext}"
+                    nuevo_nombre = f"[PrimerLatino] {title} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - Episodio {ep}{ext}"
                     
             plan.append({
                 'ruta_original': ruta_completa,
@@ -310,7 +310,7 @@ def analizar():
                 if 'title' in r:
                     release_date = r.get('release_date', '')
                     year = f" ({release_date[:4]})" if release_date else ""
-                    nuevo_nombre = f"[Dwarf] {r['title']}{year}{ext}"
+                    nuevo_nombre = f"[PrimerLatino] {r['title']}{year}{ext}"
             except Exception as e:
                 print(f"Error consultando película: {e}")
         else:
@@ -362,7 +362,7 @@ def analizar():
                     
                     # Obtener nombre de episodio de TMDB si existe, o usar un nombre genérico
                     nombre_episodio = r_e.get('name') or f"Episodio {ep}"
-                    nuevo_nombre = f"[Dwarf] {cache_serie[cache_key]} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - {nombre_episodio}{ext}"
+                    nuevo_nombre = f"[PrimerLatino] {cache_serie[cache_key]} - S{str(temp).zfill(2)}E{str(ep).zfill(2)} - {nombre_episodio}{ext}"
                 except Exception as e:
                     print(f"Error consultando episodio S{temp}E{ep}: {e}")
                     
@@ -707,7 +707,7 @@ def limpiador_procesar():
             continue
             
         nombre_sin_ext = os.path.splitext(os.path.basename(ruta))[0]
-        nuevo_titulo = f"[Dwarf] {nombre_sin_ext.replace('MrX', 'arnolddwarf')}"
+        nuevo_titulo = f"[PrimerLatino] {nombre_sin_ext.replace('MrX', 'arnolddwarf')}"
         
         is_mp4 = ruta.lower().endswith('.mp4')
         if is_mp4:
@@ -740,7 +740,7 @@ def limpiador_procesar():
                     if is_sdh:
                         detalles += " (SDH)"
                 
-                nombre_final = f"[Dwarf] {nombre_idioma}{detalles}"
+                nombre_final = f"[PrimerLatino] {nombre_idioma}{detalles}"
                 
                 if is_mp4:
                     comando.extend(["--track-name", f"{track_id}:{nombre_final}"])

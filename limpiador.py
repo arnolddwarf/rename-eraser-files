@@ -226,7 +226,7 @@ def procesar_archivos():
 
     for ruta, info in datos_analisis.items():
         nombre_sin_ext = os.path.splitext(os.path.basename(ruta))[0]
-        nuevo_titulo = f"[Dwarf] {nombre_sin_ext.replace('MrX', 'arnolddwarf')}"
+        nuevo_titulo = f"[PrimerLatino] {nombre_sin_ext.replace('MrX', 'arnolddwarf')}"
         
         is_mp4 = ruta.lower().endswith('.mp4')
         if is_mp4:
@@ -260,7 +260,7 @@ def procesar_archivos():
                     if is_sdh:
                         detalles += " (SDH)"
                 
-                nombre_final = f"[Dwarf] {nombre_idioma}{detalles}"
+                nombre_final = f"[PrimerLatino] {nombre_idioma}{detalles}"
                 
                 if is_mp4:
                     comando.extend(["--track-name", f"{track_id}:{nombre_final}"])

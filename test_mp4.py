@@ -16,15 +16,14 @@ subprocess.run([
 
 # Remux to MKV and set title and track names
 # For dummy.mp4, video track ID is 0, audio track ID is 1.
-# Options:
-# --title "[Dwarf] dummy"
-# --track-name 0:"[Dwarf] Video" --track-name 1:"[Dwarf] Inglés"
+# --title "[PrimerLatino] dummy"
+# --track-name 0:"[PrimerLatino] Video" --track-name 1:"[PrimerLatino] Inglés"
 cmd = [
     mkvmerge_path,
     "-o", dummy_mkv,
-    "--title", "[Dwarf] dummy",
-    "--track-name", "0:[Dwarf] Video",
-    "--track-name", "1:[Dwarf] Inglés",
+    "--title", "[PrimerLatino] dummy",
+    "--track-name", "0:[PrimerLatino] Video",
+    "--track-name", "1:[PrimerLatino] Inglés",
     dummy_mp4
 ]
 
